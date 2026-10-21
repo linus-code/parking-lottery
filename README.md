@@ -44,6 +44,12 @@
 6 组测试全部为正、无符号翻转。但每次选出的号码不同 ——
 **大方向稳健，具体号码在噪声以内。**
 
+块自助重采样 300 次：最优号 **85.7% 落在 0–10 万带内**，
+但只有 **18.3% 落在单点 ±5,000 内**。所以页面上给的是
+「稳健区间 `024141 – 061547`」而不是一个孤零零的号码。
+
+> 详细的自审见 [审查报告-成品.md](./审查报告-成品.md)（13 项发现，含 3 项已修的 P0）。
+
 ## 使用
 
 直接用浏览器打开 `index.html` 即可，无需服务器、无需安装。
@@ -57,12 +63,15 @@
 ```bash
 pip install numpy
 python fetch_klines.py     # 拉取历史日线（不复权）
-python analyze.py          # 末位分布检验 + 环形优化
+python analyze.py          # 末位分布检验 + 环形优化 → data/model.json
+python audit.py            # 自助重采样 + 自相关 + 按成品方式重做样本外 → data/audit.json
 python validate.py         # 稳定性 + 时间切分样本外验证
 python validate2.py        # 固定阈值验证 + 前缀和算法对拍
+python build.py            # 模板 + 模型 → index.html（改完必须重跑）
 ```
 
-模型数据在 `data/model.json`。修改后需重新注入 `index.template.html` 生成 `index.html`。
+`index.html` 是 `index.template.html` 注入模型后的产物。
+**不要直接改 `index.html`** —— 下次 `build.py` 会覆盖掉你的修改。
 
 ## 算法
 

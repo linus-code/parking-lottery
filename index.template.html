@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#0a0d12; --panel:#12161f; --panel2:#171c26; --line:#222b38;
-    --tx:#e6edf3; --mut:#7d8899; --dim:#5a6474;
+    --tx:#e6edf3; --mut:#7d8899; --dim:#717c8e;
     --cy:#38bdf8; --am:#fbbf24; --up:#ef4444; --dn:#22c55e;
     --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,monospace;
   }
@@ -39,6 +39,11 @@
   .num{font-family:var(--mono);font-size:58px;font-weight:600;letter-spacing:7px;
     color:#fff;margin:6px 0 2px;line-height:1.1;font-variant-numeric:tabular-nums}
   .num small{font-size:13px;letter-spacing:0;color:var(--dim);margin-left:6px}
+  .band{font-size:11.5px;color:var(--dim);font-family:var(--mono);margin-top:4px;letter-spacing:.2px}
+  .band b{color:var(--am);font-weight:500}
+  .warnline{display:none;margin-top:12px;padding:9px 13px;border-radius:8px;
+    background:#231c08;border-left:2px solid var(--am);font-size:12px;color:#d9c99a;line-height:1.65}
+  .warnline.show{display:block}
   .stat{display:flex;gap:30px;margin-top:14px;flex-wrap:wrap}
   .stat div b{display:block;font-family:var(--mono);font-size:20px;color:var(--cy);
     font-variant-numeric:tabular-nums}
@@ -137,6 +142,7 @@
     <span class="chip" id="chipSrc">数据源：读取中…</span>
     <span class="chip" id="chipTime">—</span>
     <span class="chip" id="chipState">—</span>
+    <span class="chip" id="chipRefresh" style="cursor:pointer" title="重新拉取行情">↻ 刷新</span>
   </div>
 </header>
 
@@ -145,18 +151,20 @@
     <div>
       <div class="lbl">推荐号码</div>
       <div class="num" id="bestNum">— — — — — —<small id="copyHint"></small></div>
+      <div class="band" id="bandLine"></div>
       <div class="stat">
         <div><b id="winRate">—</b><span>预估中签率</span></div>
         <div><b class="am" id="baseRate">—</b><span>随机选号基准</span></div>
         <div><b id="lift">—</b><span>相对提升</span></div>
       </div>
+      <div class="warnline" id="ratioWarn"></div>
     </div>
     <div class="note" style="margin:0;font-size:12.5px">
       <b style="color:var(--mut)">为什么是这个号</b><br>
       X 的分布并不均匀 —— 三只股票收盘价的<b style="color:var(--am)">分位（百分位）</b>上，
       数字 0 的出现率高达 14%–20%（期望 10%）。这使 X 落在
       <code style="font-family:var(--mono);color:var(--am)">000000–099999</code>
-      区间的概率比均匀分布高出约 43%，最优号码因此落在这一带的中心。
+      区间的概率比均匀分布高出约 43%，最优号码因此落在这一带内。但带内具体位置由环形几何决定，且高度不稳定（见下方稳健区间）。
     </div>
   </div>
 </section>
@@ -322,7 +330,8 @@ function fetchTengxun(){
         var m = line.match(/v_(\w+)="([^"]*)"/);
         if(!m) return;
         var f = m[2].split("~");
-        out[m[1]] = { price: parseFloat(f[3]), prev: parseFloat(f[4]), raw: f[3], time: f[30] };
+        out[m[1]] = { price: parseFloat(f[3]), prev: parseFloat(f[4]),
+                      vol: parseFloat(f[6]), time: f[30] };
       });
       return out;
     });
@@ -480,6 +489,26 @@ function render(){
   document.getElementById("vPlayers").textContent = players;
   document.getElementById("vSpots").textContent = spots;
 
+  /* 稳健区间：单点是噪声，区间才是结论 */
+  var A = MODEL.audit;
+  if(A){
+    document.getElementById("bandLine").innerHTML =
+      "稳健区间 <b>" + fmt(A.q25) + " – " + fmt(A.q75) + "</b>" +
+      "　单点号码在 " + A.n + " 次自助重采样中仅 " + A.hit_5k_pct +
+      "% 重现，区间才是可信的";
+  }
+
+  /* 车位/人数 过高时选号无意义（实测会出现负提升） */
+  var rw = document.getElementById("ratioWarn");
+  var ratio = spots / players;
+  if(ratio > 0.85){
+    rw.className = "warnline show";
+    rw.innerHTML = "车位/人数 = " + (ratio * 100).toFixed(0) +
+      "%。超过 85% 后选号的边际价值趋近于零 —— 实测本工具在此区间的推荐号甚至略低于随机选号，请勿据此选号。";
+  } else {
+    rw.className = "warnline";
+  }
+
   /* 备选 */
   var alts = pickAlternatives(E, 8, Math.round(N / 100));
   var box = document.getElementById("alts");
@@ -626,24 +655,34 @@ function renderCards(prices, status){
     var cents = Math.round(close * 100 + 1e-9);
     var fen = cents % 10, jiao = Math.floor(cents / 10) % 10;
     digits.push(String(fen) + String(jiao));
+    var halted = p && p.vol === 0;
 
     var el = document.createElement("div");
     el.className = "card";
     el.innerHTML =
-      "<div class='nm'><span>" + s.name + "</span><em>" + s.code + "</em></div>" +
+      "<div class='nm'><span>" + s.name +
+        (halted ? "<span style='color:var(--am);margin-left:6px'>停牌</span>" : "") +
+        "</span><em>" + s.code + "</em></div>" +
       "<div class='px'>" + close.toFixed(2) +
         (chg === null ? "" :
           "<i style='color:" + (chg >= 0 ? "var(--up)" : "var(--dn)") + "'>" +
           (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%</i>") + "</div>" +
-      "<div class='dig'><span>末两位 " + jiao + fen + " → 反转</span>" +
-        "<b>" + fen + jiao + "</b></div>";
+      "<div class='dig'><span>" +
+        (halted ? "停牌 · 沿用前收" : "末两位 " + jiao + fen + " → 反转") +
+        "</span><b>" + fen + jiao + "</b></div>";
     host.appendChild(el);
   });
 
   var x = digits.join("");
+  var haltedNames = MODEL.stocks.filter(function(s){
+    return prices[s.sym] && prices[s.sym].vol === 0;
+  }).map(function(s){ return s.name; });
+  var warn = haltedNames.length
+    ? "<br><span style='color:var(--am)'>⚠ " + haltedNames.join("、") +
+      " 停牌，规则未定义用哪个价格，派生号可能无效</span>" : "";
   document.getElementById("xLine").innerHTML =
     "按当前价格派生的开奖号：<b style='color:var(--am);font-family:var(--mono);font-size:15px'>" +
-    x + "</b>　" + status;
+    x + "</b>　" + status + warn;
 }
 
 function setChip(id, text, cls){
@@ -652,18 +691,10 @@ function setChip(id, text, cls){
   el.className = "chip" + (cls ? " " + cls : "");
 }
 
-function boot(){
-  computeModel();
-  render();
-  drawDigits();
-  document.getElementById("ftN").textContent =
-    MODEL.stocks.reduce(function(a, s){ return a + s.n; }, 0).toLocaleString();
-  document.getElementById("ftGen").textContent = "模型生成于 " + MODEL.generated;
+var tradingNow = false;
 
-  var prices = {};
-  MODEL.stocks.forEach(function(s){ prices[s.sym] = { price: s.last_close, prev: null }; });
-  renderCards(prices, "（模型内置基准价）");
-
+function refresh(){
+  setChip("chipSrc", "读取中…");
   Promise.allSettled([fetchTengxun(), fetchDongcai()]).then(function(res){
     var tx = res[0].status === "fulfilled" ? res[0].value : null;
     var dc = res[1].status === "fulfilled" ? res[1].value : null;
@@ -704,6 +735,7 @@ function boot(){
       var isClose = hh >= "15:00:00";
       setChip("chipState", isClose ? "已收盘 · 数字为收盘价" : "盘中 · 数字会变",
               isClose ? "on" : "warn");
+      tradingNow = !isClose;
       renderCards(prices2, isClose ? "（收盘价，已定型）" : "（盘中价，收盘前会变动）");
     } else {
       renderCards(prices2, "（已更新）");
@@ -711,8 +743,26 @@ function boot(){
   });
 }
 
+function boot(){
+  computeModel();
+  render();
+  drawDigits();
+  document.getElementById("ftN").textContent =
+    MODEL.stocks.reduce(function(a, s){ return a + s.n; }, 0).toLocaleString();
+  document.getElementById("ftGen").textContent = "模型生成于 " + MODEL.generated;
+
+  var prices = {};
+  MODEL.stocks.forEach(function(s){ prices[s.sym] = { price: s.last_close, prev: null }; });
+  renderCards(prices, "（模型内置基准价）");
+
+  refresh();
+  /* 盘中每 60 秒自动刷新，避免页面停留过久导致数字过期 */
+  setInterval(function(){ if(tradingNow) refresh(); }, 60000);
+}
+
 document.getElementById("players").addEventListener("input", render);
 document.getElementById("spots").addEventListener("input", render);
+document.getElementById("chipRefresh").addEventListener("click", function(){ refresh(); });
 document.getElementById("recalc").addEventListener("click", function(){
   computeModel(); render();
 });
