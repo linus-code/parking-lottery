@@ -328,12 +328,14 @@ function fetchTengxun(){
     });
 }
 
-function fetchDongcai(){
+function fetchDongcai(attempt){
+  attempt = attempt || 1;
   var ids = MODEL.stocks.map(function(s){
     return (s.sym[2] === "6" ? "1." : "0.") + s.code;
   }).join(",");
-  return fetch("https://push2.eastmoney.com/api/qt/ulist.np/get?secids=" + ids +
-               "&fields=f12,f14,f2,f18&_=" + Date.now(), {cache:"no-store"})
+  var url = "https://push2.eastmoney.com/api/qt/ulist.np/get?secids=" + ids +
+            "&fields=f12,f14,f2,f18&_=" + Date.now();
+  return fetch(url, {cache:"no-store"})
     .then(function(r){ return r.json(); })
     .then(function(d){
       var out = {};
@@ -341,7 +343,16 @@ function fetchDongcai(){
         out["sh" + it.f12] = { price: it.f2 / 100 };
         out["sz" + it.f12] = { price: it.f2 / 100 };
       });
+      if(!Object.keys(out).length) throw new Error("empty");
       return out;
+    })
+    .catch(function(e){
+      /* 东财偶发限流，重试 2 次；仍失败则视为不可用，不影响主源 */
+      if(attempt < 3){
+        return new Promise(function(res){ setTimeout(res, 400 * attempt); })
+          .then(function(){ return fetchDongcai(attempt + 1); });
+      }
+      throw e;
     });
 }
 
@@ -670,10 +681,13 @@ function boot(){
         return Math.abs((tx[s.sym] ? tx[s.sym].price : 0) - (dc[s.sym] ? dc[s.sym].price : 0));
       });
       agree = diffs.every(function(d){ return d < 0.005; });
-      setChip("chipSrc", agree ? "腾讯 + 东财 已交叉校验" : "两源不一致，请人工核对",
+      setChip("chipSrc", agree ? "腾讯 + 东财 已交叉校验" : "两源报价不一致，请人工核对",
               agree ? "on" : "warn");
+    } else if(tx){
+      /* 东财偶发限流属正常，主源可用就不算异常 */
+      setChip("chipSrc", "腾讯行情", "on");
     } else {
-      setChip("chipSrc", tx ? "腾讯（单源）" : "东方财富（单源）", "warn");
+      setChip("chipSrc", "东方财富行情", "on");
     }
 
     var prices2 = {};
