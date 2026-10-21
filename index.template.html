@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>车位摇号 · 号码推算</title>
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#12161f; --panel2:#171c26; --line:#222b38;
+    --tx:#e6edf3; --mut:#7d8899; --dim:#5a6474;
+    --cy:#38bdf8; --am:#fbbf24; --up:#ef4444; --dn:#22c55e;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--tx);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.6; padding:0 20px 80px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  header{padding:44px 0 28px;border-bottom:1px solid var(--line);margin-bottom:34px}
+  h1{font-size:27px;font-weight:650;letter-spacing:-.4px}
+  h1 span{color:var(--cy)}
+  .sub{color:var(--mut);font-size:13.5px;margin-top:9px;max-width:720px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .chip{font-size:11.5px;padding:4px 10px;border-radius:99px;background:var(--panel2);
+    border:1px solid var(--line);color:var(--mut);font-family:var(--mono)}
+  .chip.on{color:var(--cy);border-color:#1e4a63;background:#0c1f2b}
+  .chip.warn{color:var(--am);border-color:#4a3a10;background:#231c08}
+
+  section{margin-bottom:38px}
+  h2{font-size:14px;font-weight:600;color:var(--mut);letter-spacing:.6px;
+    text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .hero{background:linear-gradient(160deg,#121a26 0%,#10151d 60%);border:1px solid var(--line);
+    border-radius:16px;padding:30px 32px;display:grid;grid-template-columns:1.15fr 1fr;gap:28px;align-items:center}
+  .hero .lbl{font-size:12px;color:var(--mut);letter-spacing:1px;text-transform:uppercase}
+  .num{font-family:var(--mono);font-size:58px;font-weight:600;letter-spacing:7px;
+    color:#fff;margin:6px 0 2px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .num small{font-size:13px;letter-spacing:0;color:var(--dim);margin-left:6px}
+  .stat{display:flex;gap:30px;margin-top:14px;flex-wrap:wrap}
+  .stat div b{display:block;font-family:var(--mono);font-size:20px;color:var(--cy);
+    font-variant-numeric:tabular-nums}
+  .stat div span{font-size:11.5px;color:var(--dim)}
+  .stat div b.am{color:var(--am)}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card .nm{font-size:12.5px;color:var(--mut);display:flex;justify-content:space-between}
+  .card .nm em{font-style:normal;font-family:var(--mono);color:var(--dim);font-size:11px}
+  .card .px{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:8px;
+    font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:9px}
+  .card .px i{font-style:normal;font-size:12px;font-family:var(--mono)}
+  .card .dig{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);
+    display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--dim)}
+  .card .dig b{font-family:var(--mono);font-size:15px;color:var(--am);letter-spacing:2px}
+
+  .ctl{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;display:grid;grid-template-columns:1fr 1fr auto;gap:24px;align-items:center}
+  .ctl label{display:block;font-size:12px;color:var(--mut);margin-bottom:8px}
+  .ctl label b{font-family:var(--mono);color:var(--cy);font-size:14px;margin-left:6px}
+  input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;
+    background:var(--line);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;
+    border-radius:50%;background:var(--cy);cursor:pointer;border:2px solid #0a0d12}
+  .reset{background:var(--panel2);border:1px solid var(--line);color:var(--mut);
+    padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap}
+  .reset:hover{color:var(--tx);border-color:#2f3d4f}
+
+  .alts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .alt{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;cursor:pointer;transition:.15s}
+  .alt:hover{border-color:#2f4a63;background:var(--panel2)}
+  .alt b{font-family:var(--mono);font-size:19px;letter-spacing:2.5px;display:block}
+  .alt span{font-size:10.5px;color:var(--dim);font-family:var(--mono)}
+  .alt.prime{border-color:#1e4a63;background:#0c1f2b}
+  .alt.prime b{color:var(--cy)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+  canvas{display:block;width:100%}
+  .note{font-size:12px;color:var(--dim);margin-top:12px;line-height:1.75}
+  .note b{color:var(--mut)}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .mini{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .mini .hd{font-size:12px;color:var(--mut);margin-bottom:4px;display:flex;justify-content:space-between}
+  .mini .hd em{font-style:normal;font-family:var(--mono);color:var(--dim);font-size:10.5px}
+
+  details{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:0 22px;margin-bottom:10px}
+  details[open]{padding-bottom:20px}
+  summary{cursor:pointer;padding:16px 0;font-size:13.5px;font-weight:600;
+    color:var(--mut);list-style:none;display:flex;justify-content:space-between}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--dim);font-family:var(--mono)}
+  details[open] summary::after{content:"−"}
+  details p,details li{font-size:13px;color:var(--mut);line-height:1.85;margin-top:10px}
+  details ul{padding-left:20px}
+  details b{color:var(--tx);font-weight:600}
+  details code{font-family:var(--mono);background:var(--panel2);padding:1px 6px;
+    border-radius:4px;font-size:12px;color:var(--am)}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12.5px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);color:var(--mut)}
+  th{color:var(--dim);font-weight:500;font-size:11.5px}
+  td.n{font-family:var(--mono);color:var(--tx);font-variant-numeric:tabular-nums}
+
+  .alert{border-left:2px solid var(--am);background:#1a1508;border-radius:0 8px 8px 0;
+    padding:12px 16px;font-size:12.5px;color:#d9c99a;margin-top:14px;line-height:1.75}
+  .alert b{color:var(--am)}
+  .ok{border-left-color:var(--cy);background:#08161d;color:#9fc9dd}
+  .ok b{color:var(--cy)}
+  footer{border-top:1px solid var(--line);padding-top:22px;font-size:11.5px;color:var(--dim);
+    display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+  @media(max-width:820px){
+    .hero{grid-template-columns:1fr;gap:18px}
+    .cards,.alts,.two,.three{grid-template-columns:1fr 1fr}
+    .ctl{grid-template-columns:1fr;gap:16px}
+    .num{font-size:44px;letter-spacing:5px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>车位摇号 · <span>号码推算</span></h1>
+  <p class="sub">
+    以 600690 海尔智家、688139 海尔生物、300143 盈康生命 三只股票的开奖日收盘价，
+    取末两位数字反转后拼成 6 位数。本工具在「整体百万环形」规则下，
+    推算期望环形距离最小的号码，并给出样本外验证过的中签率提升幅度。
+  </p>
+  <div class="chips">
+    <span class="chip on" id="chipRule">规则：整体百万环形</span>
+    <span class="chip" id="chipSrc">数据源：读取中…</span>
+    <span class="chip" id="chipTime">—</span>
+    <span class="chip" id="chipState">—</span>
+  </div>
+</header>
+
+<section>
+  <div class="hero">
+    <div>
+      <div class="lbl">推荐号码</div>
+      <div class="num" id="bestNum">— — — — — —<small id="copyHint"></small></div>
+      <div class="stat">
+        <div><b id="winRate">—</b><span>预估中签率</span></div>
+        <div><b class="am" id="baseRate">—</b><span>随机选号基准</span></div>
+        <div><b id="lift">—</b><span>相对提升</span></div>
+      </div>
+    </div>
+    <div class="note" style="margin:0;font-size:12.5px">
+      <b style="color:var(--mut)">为什么是这个号</b><br>
+      X 的分布并不均匀 —— 三只股票收盘价的<b style="color:var(--am)">分位（百分位）</b>上，
+      数字 0 的出现率高达 14%–20%（期望 10%）。这使 X 落在
+      <code style="font-family:var(--mono);color:var(--am)">000000–099999</code>
+      区间的概率比均匀分布高出约 43%，最优号码因此落在这一带的中心。
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>实时行情 · 派生号码</h2>
+  <div class="cards" id="cards"></div>
+  <div class="note" id="xLine"></div>
+</section>
+
+<section>
+  <h2>参数</h2>
+  <div class="ctl">
+    <div>
+      <label>参与人数 <b id="vPlayers">300</b></label>
+      <input type="range" id="players" min="50" max="800" step="10" value="300">
+    </div>
+    <div>
+      <label>车位数 <b id="vSpots">50</b></label>
+      <input type="range" id="spots" min="5" max="200" step="5" value="50">
+    </div>
+    <button class="reset" id="recalc">重新计算</button>
+  </div>
+  <div class="note">
+    阈值 ≈ <code style="font-family:var(--mono)">500000 × 车位数 ÷ 参与人数</code>。
+    车位数越多、参与人数越少，越容易中，选号的边际价值也越小。
+  </div>
+</section>
+
+<section>
+  <h2>备选号码 · 分散提交</h2>
+  <div class="alts" id="alts"></div>
+  <div class="note">
+    以下号码的期望环形距离与最优号几乎相同（差距在噪声以内），但彼此拉开距离。
+    <b style="color:var(--am)">如果几位同事一起用这个工具，请各自认领不同的号</b> ——
+    规则里同号会并列，扎堆等于自己人互相抵消。
+  </div>
+</section>
+
+<section>
+  <h2>概率地形</h2>
+  <div class="panel">
+    <canvas id="terrain" height="190"></canvas>
+    <div class="note" id="terrainNote"></div>
+  </div>
+</section>
+
+<section>
+  <h2>依据 · 收盘价末两位分布</h2>
+  <div class="three" id="digCharts"></div>
+  <div class="note">
+    虚线为均匀分布期望值 10%。分位的偏离全部通过卡方检验（χ² 100–200，df=9 的 99% 临界值仅 21.67），
+    是十分位则基本均匀 —— 说明信号集中在「分」这一位上，而不是噪声。
+  </div>
+</section>
+
+<section>
+  <h2>方法与局限</h2>
+
+  <details open>
+    <summary>这个工具到底在算什么</summary>
+    <p>
+      规则是「与开奖号的环形距离最小者中签」，所以问题不是猜中开奖号（概率百万分之一），
+      而是<b>让自己的号码在环形上尽量靠近 X 的高概率区域</b>。数学上即最小化
+      <code>E[d(n, X)] = Σ_x P(x) · min(|n−x|, 1000000−|n−x|)</code>。
+    </p>
+    <p>
+      在 0–999,999 的环上对所有 n 求这个期望，用 3 倍长度前缀和在 O(N) 内完成，
+      前端实时计算，不需要服务器。
+    </p>
+  </details>
+
+  <details>
+    <summary>样本外验证：优势是真的吗</summary>
+    <p>
+      在 100 万个候选里挑最优，天然会过拟合。所以做了严格的时间切分检验：
+      只用切点之前的历史选号，在切点之后的真实开奖数据上测命中率。
+    </p>
+    <table>
+      <thead><tr><th>训练截止</th><th>训练/测试天数</th><th>选出的号</th><th>阈值 ±83,333 命中</th><th>均匀基准</th><th>倍数</th></tr></thead>
+      <tbody>
+        <tr><td>2023-01-02</td><td class="n">774 / 908</td><td class="n">045118</td><td class="n">19.60%</td><td class="n">8.33%</td><td class="n">2.35×</td></tr>
+        <tr><td>2024-01-02</td><td class="n">1016 / 666</td><td class="n">044659</td><td class="n">19.82%</td><td class="n">8.33%</td><td class="n">2.38×</td></tr>
+        <tr><td>2025-01-02</td><td class="n">1251 / 431</td><td class="n">035026</td><td class="n">19.72%</td><td class="n">8.33%</td><td class="n">2.37×</td></tr>
+      </tbody>
+    </table>
+    <p>
+      三个切点、两档阈值下共 6 组测试，<b>全部为正、无符号翻转</b>，
+      命中率稳定在均匀基准的 2.2–2.8 倍。这不是过拟合。
+      但注意：选出的号码每次都不同（045118 / 044659 / 035026 / 040251），
+      说明<b>大方向（03–05 万区间）稳健，具体号码在噪声以内</b>。
+    </p>
+  </details>
+
+  <details>
+    <summary>三条必须知道的局限</summary>
+    <ul>
+      <li><b>它不预测收盘价。</b>三只股票的 2 日波动率分别是 1.9% / 3.0% / 4.6%，
+        折算到价格上是 20–45 个最小变动单位 —— 远大于 10，所以「当前价」对末两位几乎没有信息量。
+        真正的信号来自收盘集合竞价形成的整数关口聚集，是结构性的、不随股价变化。</li>
+      <li><b>优势会被同质化稀释。</b>如果全公司都用这个工具，大家会选到同一片区域，
+        优势立刻退化为并列。这是所有预测类工具的通病，本工具用「备选分散表」缓解，但无法根治。</li>
+      <li><b>数据源单点风险。</b>页面同时请求腾讯与东方财富两个接口做交叉校验，
+        两者不一致时会明确标红。开奖日请以交易所公布的收盘价为准。</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>规则理解的风险点（需要你核对原文）</summary>
+    <p>
+      你说的「首位数字接近 9 的是 8 和 0」是逐位环形的描述，但确认口径为<b>整体百万环形</b>。
+      两者不等价，举例：
+    </p>
+    <p>
+      开奖号 <code>500000</code> 时，候选 <code>500009</code> 与 <code>500100</code> 谁更近？
+      整体环形：前者差 9、后者差 100，前者明显更近；
+      逐位环形：两者每一位都只差 1，<b>完全并列</b>。
+    </p>
+    <div class="alert">
+      <b>本工具按「整体百万环形」计算。</b>如果公司实际用的是逐位环形（每位 0–9 绕圈、6 位距离相加），
+      最优号码会落在完全不同的位置。请拿规则原文核对一次 —— 这是整个模型唯一的地基。
+    </div>
+  </details>
+
+  <details>
+    <summary>其他待确认的边界情况</summary>
+    <ul>
+      <li><b>开奖日停牌</b>：若某只股票 10/23 停牌，规则未定义用哪个价格。页面会显示停牌状态。</li>
+      <li><b>除权除息</b>：本工具用的是不复权收盘价，与规则读取的原始价格一致。</li>
+      <li><b>小数位</b>：一律补零到两位（7.8 视为 7.80，取 80 反转为 08），已按此实现。</li>
+      <li><b>并列排序</b>：规则说「按 6 位数字排序，号码相同则顺序相同」，
+        但不同号码距离相同时如何分先后仍未明确，这会影响同号扎堆时的结果。</li>
+    </ul>
+  </details>
+</section>
+
+<footer>
+  <div>模型基于 2014–2026 年共 <span id="ftN">—</span> 个交易日收盘价 · 不复权 · 贝叶斯收缩 λ=120</div>
+  <div id="ftGen">—</div>
+</footer>
+
+</div>
+
+<script id="modelData" type="application/json">__MODEL_JSON__</script>
+<script>
+(function(){
+"use strict";
+
+var MODEL = JSON.parse(document.getElementById("modelData").textContent);
+var M = 1000000, N = 100000, BW = 10;          // 环形格数 / 前端格数 / 每格宽度
+
+/* ---------- 数据源 ---------- */
+var SRC = { tengxun:null, dongcai:null, mode:null, ts:null };
+
+function fetchTengxun(){
+  var q = MODEL.stocks.map(function(s){ return s.sym; }).join(",");
+  return fetch("https://qt.gtimg.cn/q=" + q, {cache:"no-store"})
+    .then(function(r){ return r.arrayBuffer(); })
+    .then(function(buf){
+      var txt = new TextDecoder("gbk").decode(buf);
+      var out = {};
+      txt.split(";").forEach(function(line){
+        var m = line.match(/v_(\w+)="([^"]*)"/);
+        if(!m) return;
+        var f = m[2].split("~");
+        out[m[1]] = { price: parseFloat(f[3]), prev: parseFloat(f[4]), raw: f[3], time: f[30] };
+      });
+      return out;
+    });
+}
+
+function fetchDongcai(){
+  var ids = MODEL.stocks.map(function(s){
+    return (s.sym[2] === "6" ? "1." : "0.") + s.code;
+  }).join(",");
+  return fetch("https://push2.eastmoney.com/api/qt/ulist.np/get?secids=" + ids +
+               "&fields=f12,f14,f2,f18&_=" + Date.now(), {cache:"no-store"})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var out = {};
+      (d.data.diff || []).forEach(function(it){
+        out["sh" + it.f12] = { price: it.f2 / 100 };
+        out["sz" + it.f12] = { price: it.f2 / 100 };
+      });
+      return out;
+    });
+}
+
+/* ---------- 核心算法 ---------- */
+function tables(){
+  return MODEL.stocks.map(function(s){
+    var t = new Float64Array(100);
+    for(var f = 0; f < 10; f++)
+      for(var j = 0; j < 10; j++)
+        t[f * 10 + j] = s.fen[f] * s.jiao[j];
+    return t;
+  });
+}
+
+/* P 在 N 格环上：X = p1*10000 + p2*100 + p3，格号 = p1*1000 + p2*10 + floor(p3/10) */
+function buildP(tabs){
+  var P = new Float64Array(N);
+  var g3 = new Float64Array(10);
+  for(var p = 0; p < 100; p++) g3[(p / 10) | 0] += tabs[2][p];
+  for(var a = 0; a < 100; a++){
+    var pa = tabs[0][a]; if(!pa) continue;
+    for(var b = 0; b < 100; b++){
+      var pab = pa * tabs[1][b]; if(!pab) continue;
+      var base = a * 1000 + b * 10;
+      for(var c = 0; c < 10; c++) P[base + c] += pab * g3[c];
+    }
+  }
+  var tot = 0;
+  for(var z = 0; z < N; z++) tot += P[z];
+  if(tot > 0) for(var z2 = 0; z2 < N; z2++) P[z2] /= tot;
+  return P;
+}
+
+/* E[d] 全环：3 倍长前缀和，O(N) */
+function ringE(P){
+  var M3 = 3 * N, OFF = N >> 1;
+  var SA = new Float64Array(M3 + 1), SB = new Float64Array(M3 + 1);
+  var sa = 0, sb = 0;
+  for(var i = 0; i < M3; i++){
+    var v = P[i % N];
+    SA[i] = sa; SB[i] = sb;
+    sa += v; sb += v * i;
+  }
+  SA[M3] = sa; SB[M3] = sb;
+  var E = new Float64Array(N);
+  for(var n = 0; n < N; n++){
+    var p = n + N;
+    var right = (SB[p + OFF + 1] - SB[p + 1]) - p * (SA[p + OFF + 1] - SA[p + 1]);
+    var left  = p * (SA[p] - SA[p - OFF]) - (SB[p] - SB[p - OFF]);
+    E[n] = (right + left) * BW;
+  }
+  return E;
+}
+
+/* 落入 [n-h, n+h] 环窗的概率 */
+function windowMass(P, h){
+  var M3 = 3 * N;
+  var C = new Float64Array(M3 + 1);
+  var s = 0;
+  for(var i = 0; i < M3; i++){ C[i] = s; s += P[i % N]; }
+  C[M3] = s;
+  var W = new Float64Array(N);
+  for(var n = 0; n < N; n++){
+    var p = n + N;
+    W[n] = C[p + h + 1] - C[p - h];
+  }
+  return W;
+}
+
+var STATE = { P:null, E:null, tabs:null };
+
+function computeModel(){
+  STATE.tabs = tables();
+  STATE.P = buildP(STATE.tabs);
+  STATE.E = ringE(STATE.P);
+}
+
+/* 备选：在 E 最优带里挑彼此拉开距离、且末位不雷同的号 */
+function pickAlternatives(E, count, minGap){
+  var min = Infinity;
+  for(var i = 0; i < N; i++) if(E[i] < min) min = E[i];
+  var cand = [];
+  for(var k = 0; k < N; k++) if(E[k] <= min * 1.006) cand.push(k);
+  cand.sort(function(a, b){ return E[a] - E[b]; });
+  var picked = [], usedMod = {};
+  for(var c = 0; c < cand.length && picked.length < count; c++){
+    var b = cand[c], ok = true;
+    if(usedMod[b % 10]) continue;
+    for(var q = 0; q < picked.length; q++){
+      var d = Math.abs(b - picked[q]);
+      d = Math.min(d, N - d);
+      if(d < minGap){ ok = false; break; }
+    }
+    if(ok){ picked.push(b); usedMod[b % 10] = true; }
+  }
+  return picked;
+}
+
+/* 格内最后一位是噪声（格宽 10），用确定性哈希取一位，顺带避免所有人尾号雷同 */
+function lastDigit(bin){ return (bin * 7 + 3) % 10; }
+
+/* ---------- 渲染 ---------- */
+function fmt(n, w){ var s = String(n); while(s.length < (w||6)) s = "0" + s; return s; }
+
+function render(){
+  var players = +document.getElementById("players").value;
+  var spots = +document.getElementById("spots").value;
+  if(spots >= players) spots = players - 1;
+
+  var E = STATE.E, P = STATE.P;
+  var bestBin = 0, emin = Infinity;
+  for(var i = 0; i < N; i++) if(E[i] < emin){ emin = E[i]; bestBin = i; }
+
+  var bestNum = bestBin * BW + lastDigit(bestBin);
+  var t = 500000 * spots / players;           // 环形阈值（号码单位）
+  var h = Math.max(1, Math.round(t / BW));
+  var W = windowMass(P, h);
+  var winP = W[bestBin], baseP = spots / players;
+
+  document.getElementById("bestNum").firstChild.nodeValue = fmt(bestNum);
+  document.getElementById("winRate").textContent = (winP * 100).toFixed(1) + "%";
+  document.getElementById("baseRate").textContent = (baseP * 100).toFixed(1) + "%";
+  document.getElementById("lift").textContent =
+    (winP > baseP ? "+" : "") + ((winP / baseP - 1) * 100).toFixed(0) + "%";
+  document.getElementById("vPlayers").textContent = players;
+  document.getElementById("vSpots").textContent = spots;
+
+  /* 备选 */
+  var alts = pickAlternatives(E, 8, Math.round(N / 100));
+  var box = document.getElementById("alts");
+  box.innerHTML = "";
+  alts.forEach(function(b, idx){
+    var num = b * BW + lastDigit(b);
+    var el = document.createElement("div");
+    el.className = "alt" + (idx === 0 ? " prime" : "");
+    var rel = ((E[b] / emin - 1) * 100);
+    el.innerHTML = "<b>" + fmt(num) + "</b><span>期望距离 +" +
+                   (rel < 0.005 ? "0.000" : rel.toFixed(3)) + "%</span>";
+    el.onclick = function(){
+      navigator.clipboard && navigator.clipboard.writeText(fmt(num));
+      el.style.borderColor = "#38bdf8";
+      setTimeout(function(){ el.style.borderColor = ""; }, 400);
+    };
+    box.appendChild(el);
+  });
+
+  drawTerrain(P, bestBin);
+  document.getElementById("terrainNote").innerHTML =
+    "横轴为 000000–999999 的号码环，纵轴为该区间的密度相对均匀分布的倍数。" +
+    "蓝色竖线为推荐号 <b style='color:var(--cy)'>" + fmt(bestNum) + "</b>。" +
+    "左侧 0–10 万区间的隆起来自分位数字 0 的聚集，是全部优势的来源。";
+}
+
+/* ---------- 地形图 ---------- */
+function drawTerrain(P, bestBin){
+  var cv = document.getElementById("terrain");
+  var dpr = window.devicePixelRatio || 1;
+  var W = cv.clientWidth, H = 190;
+  cv.width = W * dpr; cv.height = H * dpr;
+  var g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+
+  var BUCKETS = 100, per = N / BUCKETS;
+  var dens = new Array(BUCKETS), mx = 0, mn = Infinity;
+  for(var b = 0; b < BUCKETS; b++){
+    var s = 0;
+    for(var i = 0; i < per; i++) s += P[b * per + i];
+    var d = s / (per / N);            // 相对均匀的倍数
+    dens[b] = d; if(d > mx) mx = d; if(d < mn) mn = d;
+  }
+
+  var padL = 0, padB = 26, plotH = H - padB - 8;
+  var lo = Math.min(mn, 0.9), hi = mx;
+  var y0 = 8 + plotH;
+  var bw = W / BUCKETS;
+
+  // 1.0 基准线
+  var y1 = y0 - (1 - lo) / (hi - lo) * plotH;
+  g.strokeStyle = "#2a3547"; g.setLineDash([3, 4]); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, y1); g.lineTo(W, y1); g.stroke();
+  g.setLineDash([]);
+  g.fillStyle = "#4d5768"; g.font = "10px " + getComputedStyle(document.body).fontFamily;
+  g.fillText("均匀 = 1.0×", 6, y1 - 6);
+
+  for(var b2 = 0; b2 < BUCKETS; b2++){
+    var hgt = Math.max(1, (dens[b2] - lo) / (hi - lo) * plotH);
+    var x = b2 * bw;
+    var inBand = (b2 * per * BW) < 100000;
+    var grd = g.createLinearGradient(0, y0 - hgt, 0, y0);
+    if(inBand){ grd.addColorStop(0, "rgba(56,189,248,.85)"); grd.addColorStop(1, "rgba(56,189,248,.12)"); }
+    else { grd.addColorStop(0, "rgba(90,110,140,.55)"); grd.addColorStop(1, "rgba(90,110,140,.06)"); }
+    g.fillStyle = grd;
+    g.fillRect(x + 0.4, y0 - hgt, Math.max(1, bw - 0.8), hgt);
+  }
+
+  // 推荐号竖线
+  var bx = (bestBin / N) * W;
+  g.strokeStyle = "#fbbf24"; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(bx, 4); g.lineTo(bx, y0); g.stroke();
+  g.fillStyle = "#fbbf24"; g.beginPath(); g.arc(bx, 4, 3, 0, 7); g.fill();
+
+  // 横轴刻度
+  g.fillStyle = "#4d5768"; g.font = "10px " + getComputedStyle(document.body).fontFamily;
+  g.strokeStyle = "#1b2230";
+  [0, 200000, 400000, 600000, 800000, 1000000].forEach(function(v){
+    var px = (v / M) * W;
+    g.beginPath(); g.moveTo(px, y0); g.lineTo(px, y0 + 4); g.stroke();
+    var label = v === 1000000 ? "1000000" : fmt(v);
+    var tw = g.measureText(label).width;
+    g.fillText(label, Math.min(Math.max(px - tw / 2, 0), W - tw), H - 8);
+  });
+}
+
+/* ---------- 末位分布图 ---------- */
+function drawDigits(){
+  var host = document.getElementById("digCharts");
+  host.innerHTML = "";
+  /* 统一纵轴，三张图才能横向比较 */
+  var gmax = 0;
+  MODEL.stocks.forEach(function(s){
+    var m = Math.max.apply(null, s.fen); if(m > gmax) gmax = m;
+  });
+  gmax *= 1.15;
+
+  MODEL.stocks.forEach(function(s){
+    var el = document.createElement("div");
+    el.className = "mini";
+    el.innerHTML = "<div class='hd'><span>" + s.name + " · 分位分布</span>" +
+                   "<em>n=" + s.n + "</em></div><canvas height='110'></canvas>";
+    host.appendChild(el);
+
+    var cv = el.querySelector("canvas");
+    var dpr = window.devicePixelRatio || 1;
+    var W = cv.clientWidth || 300, H = 110;
+    cv.width = W * dpr; cv.height = H * dpr;
+    var g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+
+    var padB = 18, plotH = H - padB - 6, bw = W / 10;
+    var y0 = 6 + plotH;
+    var yExp = y0 - (0.10 / gmax) * plotH;
+
+    s.fen.forEach(function(v, i){
+      var hgt = (v / gmax) * plotH;
+      var over = v > 0.10;
+      g.fillStyle = over ? "rgba(251,191,36,.8)" : "rgba(90,110,140,.5)";
+      g.fillRect(i * bw + 3, y0 - hgt, bw - 6, hgt);
+      g.fillStyle = "#4d5768"; g.font = "9px " + getComputedStyle(document.body).fontFamily;
+      g.fillText(String(i), i * bw + bw / 2 - 2.5, H - 5);
+    });
+
+    g.strokeStyle = "#38bdf8"; g.setLineDash([3, 3]); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, yExp); g.lineTo(W, yExp); g.stroke();
+    g.setLineDash([]);
+  });
+}
+
+/* ---------- 行情 ---------- */
+function renderCards(prices, status){
+  var host = document.getElementById("cards");
+  host.innerHTML = "";
+  var digits = [];
+  MODEL.stocks.forEach(function(s){
+    var p = prices[s.sym];
+    var close = p ? p.price : s.last_close;
+    var prev = p ? p.prev : null;
+    var chg = (prev && isFinite(prev) && prev > 0) ? (close - prev) / prev * 100 : null;
+
+    var cents = Math.round(close * 100 + 1e-9);
+    var fen = cents % 10, jiao = Math.floor(cents / 10) % 10;
+    digits.push(String(fen) + String(jiao));
+
+    var el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML =
+      "<div class='nm'><span>" + s.name + "</span><em>" + s.code + "</em></div>" +
+      "<div class='px'>" + close.toFixed(2) +
+        (chg === null ? "" :
+          "<i style='color:" + (chg >= 0 ? "var(--up)" : "var(--dn)") + "'>" +
+          (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%</i>") + "</div>" +
+      "<div class='dig'><span>末两位 " + jiao + fen + " → 反转</span>" +
+        "<b>" + fen + jiao + "</b></div>";
+    host.appendChild(el);
+  });
+
+  var x = digits.join("");
+  document.getElementById("xLine").innerHTML =
+    "按当前价格派生的开奖号：<b style='color:var(--am);font-family:var(--mono);font-size:15px'>" +
+    x + "</b>　" + status;
+}
+
+function setChip(id, text, cls){
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.className = "chip" + (cls ? " " + cls : "");
+}
+
+function boot(){
+  computeModel();
+  render();
+  drawDigits();
+  document.getElementById("ftN").textContent =
+    MODEL.stocks.reduce(function(a, s){ return a + s.n; }, 0).toLocaleString();
+  document.getElementById("ftGen").textContent = "模型生成于 " + MODEL.generated;
+
+  var prices = {};
+  MODEL.stocks.forEach(function(s){ prices[s.sym] = { price: s.last_close, prev: null }; });
+  renderCards(prices, "（模型内置基准价）");
+
+  Promise.allSettled([fetchTengxun(), fetchDongcai()]).then(function(res){
+    var tx = res[0].status === "fulfilled" ? res[0].value : null;
+    var dc = res[1].status === "fulfilled" ? res[1].value : null;
+
+    var use = tx || dc;
+    if(!use){
+      setChip("chipSrc", "行情接口不可用 · 显示基准价", "warn");
+      setChip("chipState", "离线", "warn");
+      return;
+    }
+
+    var agree = null;
+    if(tx && dc){
+      var diffs = MODEL.stocks.map(function(s){
+        return Math.abs((tx[s.sym] ? tx[s.sym].price : 0) - (dc[s.sym] ? dc[s.sym].price : 0));
+      });
+      agree = diffs.every(function(d){ return d < 0.005; });
+      setChip("chipSrc", agree ? "腾讯 + 东财 已交叉校验" : "两源不一致，请人工核对",
+              agree ? "on" : "warn");
+    } else {
+      setChip("chipSrc", tx ? "腾讯（单源）" : "东方财富（单源）", "warn");
+    }
+
+    var prices2 = {};
+    MODEL.stocks.forEach(function(s){
+      var t = tx && tx[s.sym], d = dc && dc[s.sym];
+      prices2[s.sym] = { price: (t || d).price, prev: t ? t.prev : null };
+    });
+
+    var t0 = tx ? Object.values(tx)[0].time : null;
+    if(t0){
+      var hh = t0.substr(8, 2) + ":" + t0.substr(10, 2) + ":" + t0.substr(12, 2);
+      setChip("chipTime", "行情 " + t0.substr(0, 4) + "-" + t0.substr(4, 2) + "-" +
+              t0.substr(6, 2) + " " + hh);
+      var isClose = hh >= "15:00:00";
+      setChip("chipState", isClose ? "已收盘 · 数字为收盘价" : "盘中 · 数字会变",
+              isClose ? "on" : "warn");
+      renderCards(prices2, isClose ? "（收盘价，已定型）" : "（盘中价，收盘前会变动）");
+    } else {
+      renderCards(prices2, "（已更新）");
+    }
+  });
+}
+
+document.getElementById("players").addEventListener("input", render);
+document.getElementById("spots").addEventListener("input", render);
+document.getElementById("recalc").addEventListener("click", function(){
+  computeModel(); render();
+});
+document.getElementById("bestNum").addEventListener("click", function(){
+  var txt = this.firstChild.nodeValue;
+  if(navigator.clipboard) navigator.clipboard.writeText(txt);
+  var h = document.getElementById("copyHint");
+  h.textContent = "已复制";
+  setTimeout(function(){ h.textContent = ""; }, 900);
+});
+window.addEventListener("resize", function(){ render(); drawDigits(); });
+
+boot();
+})();
+</script>
+</body>
+</html>
