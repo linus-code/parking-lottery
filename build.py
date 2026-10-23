@@ -28,6 +28,10 @@ slim = {
 if audit:
     slim["audit"] = audit
 
+bt_path = os.path.join(ROOT, "data/backtest_summary.json")
+if os.path.exists(bt_path):
+    slim["backtest"] = json.load(open(bt_path, encoding="utf-8"))
+
 js = json.dumps(slim, ensure_ascii=False, separators=(",", ":"))
 out = tpl.replace("__MODEL_JSON__", js)
 open(out_path, "w", encoding="utf-8").write(out)

@@ -111,6 +111,11 @@
   th{color:var(--dim);font-weight:500;font-size:11.5px}
   td.n{font-family:var(--mono);color:var(--tx);font-variant-numeric:tabular-nums}
 
+  .retract{background:#2a1410;border:1px solid #6b2b1e;border-left:3px solid var(--up);
+    border-radius:10px;padding:16px 20px;margin-bottom:30px}
+  .retract .rt{font-size:13px;color:#f87171;font-weight:600;letter-spacing:.3px}
+  .retract p{font-size:13px;color:#e0b4ac;line-height:1.8;margin-top:7px}
+  .retract b{color:#fff}
   .alert{border-left:2px solid var(--am);background:#1a1508;border-radius:0 8px 8px 0;
     padding:12px 16px;font-size:12.5px;color:#d9c99a;margin-top:14px;line-height:1.75}
   .alert b{color:var(--am)}
@@ -130,12 +135,21 @@
 <body>
 <div class="wrap">
 
+<div class="retract">
+  <div class="rt">结论修正 · 2026-10-24</div>
+  <p>走查回测 <b id="btWeeks">283</b> 周（2020-11 ~ 2026-10）显示：本模型的历史优势集中在 2020–2022 年，
+  之后持续衰减，<b>2024 年起已归零</b> —— 推荐号中签率 <b id="btR1">16.68%</b>，
+  随机号 <b id="btR2">16.66%</b>，差 <b id="btD">+0.02pp</b>。</p>
+  <p><b>请勿再据「推荐号码」选号。</b>本页面现在只应作为开奖号计算器使用。
+  详情见下方「走查回测」。</p>
+</div>
+
 <header>
   <h1>车位摇号 · <span>号码推算</span></h1>
   <p class="sub">
     以 600690 海尔智家、688139 海尔生物、300143 盈康生命 三只股票的开奖日收盘价，
-    取末两位数字反转后拼成 6 位数。本工具在「整体百万环形」规则下，
-    推算期望环形距离最小的号码，并给出样本外验证过的中签率提升幅度。
+    取末两位数字反转后拼成 6 位数。本工具在「整体百万环形」规则下推算期望环形距离最小的号码。
+    但 283 周走查回测显示，该策略的预测优势在 2024 年已归零 —— <b style="color:var(--mut)">现在请只把它当开奖号计算器用。</b>
   </p>
   <div class="chips">
     <span class="chip on" id="chipRule">规则：整体百万环形</span>
@@ -149,22 +163,23 @@
 <section>
   <div class="hero">
     <div>
-      <div class="lbl">推荐号码</div>
+      <div class="lbl">推荐号码 · 模型已失效，仅供参考</div>
       <div class="num" id="bestNum">— — — — — —<small id="copyHint"></small></div>
       <div class="band" id="bandLine"></div>
       <div class="stat">
-        <div><b id="winRate">—</b><span>预估中签率</span></div>
-        <div><b class="am" id="baseRate">—</b><span>随机选号基准</span></div>
-        <div><b id="lift">—</b><span>相对提升</span></div>
+        <div><b id="winRate">—</b><span>近三年实测中签率</span></div>
+        <div><b class="am" id="baseRate">—</b><span>随机选号</span></div>
+        <div><b id="lift">—</b><span>实测差值</span></div>
       </div>
       <div class="warnline" id="ratioWarn"></div>
     </div>
     <div class="note" style="margin:0;font-size:12.5px">
-      <b style="color:var(--mut)">为什么是这个号</b><br>
-      X 的分布并不均匀 —— 三只股票收盘价的<b style="color:var(--am)">分位（百分位）</b>上，
-      数字 0 的出现率高达 14%–20%（期望 10%）。这使 X 落在
-      <code style="font-family:var(--mono);color:var(--am)">000000–099999</code>
-      区间的概率比均匀分布高出约 43%，最优号码因此落在这一带内。但带内具体位置由环形几何决定，且高度不稳定（见下方稳健区间）。
+      <b style="color:var(--mut)">这个号码的依据（以及它为什么不再可信）</b><br>
+      三只股票收盘价的<b style="color:var(--am)">分位（百分位）</b>上，数字 0 曾长期高频出现，
+      使 X 落在 <code style="font-family:var(--mono);color:var(--am)">000000–099999</code>
+      的概率高于均匀分布。但<b style="color:var(--up)">这个偏差在 2023 年后基本消失</b>：
+      分位=0 的合计频率从 2020 年的 24.3% 降到 2025 年的 11.7%（均匀是 10%）。
+      号码本身是按历史分布算出的，<b>不再具备预测价值</b>。
     </div>
   </div>
 </section>
@@ -218,6 +233,19 @@
   <div class="note">
     虚线为均匀分布期望值 10%。分位的偏离全部通过卡方检验（χ² 100–200，df=9 的 99% 临界值仅 21.67），
     是十分位则基本均匀 —— 说明信号集中在「分」这一位上，而不是噪声。
+  </div>
+</section>
+
+<section>
+  <h2>走查回测 · 完全复刻实际流程</h2>
+  <div class="panel">
+    <div class="note" style="margin:0 0 14px">
+      每周取「周三/周四选号 → 周五收盘开奖」。模型<b>只用周三之前的数据</b>（严格无未来信息），
+      每个周五重新定号。对手按随机选号、300 人 / 50 车位模拟。
+    </div>
+    <div id="btSeg"></div>
+    <div style="margin-top:22px" id="btYear"></div>
+    <div class="note" id="btNote"></div>
   </div>
 </section>
 
@@ -308,7 +336,7 @@
 
 </div>
 
-<script id="modelData" type="application/json">{"generated":"2026-10-21","rule":"整体百万环形","stocks":[{"sym":"sh600690","code":"600690","name":"海尔智家","n":3031,"fen":[0.141225,0.096795,0.096477,0.095843,0.079023,0.110441,0.089813,0.076484,0.110758,0.103142],"jiao":[0.100603,0.108537,0.096477,0.106633,0.103142,0.092669,0.092986,0.09616,0.092669,0.110124],"sd2":0.019488,"last_close":19.69},{"sym":"sh688139","code":"688139","name":"海尔生物","n":1684,"fen":[0.191242,0.0898,0.099224,0.086475,0.070399,0.107539,0.088692,0.076497,0.101441,0.088692],"jiao":[0.113636,0.087029,0.093126,0.104767,0.095344,0.093126,0.096452,0.093681,0.11918,0.103659],"sd2":0.030044,"last_close":32.69},{"sym":"sz300143","code":"300143","name":"盈康生命","n":2773,"fen":[0.1514,0.091255,0.09402,0.092983,0.079848,0.115451,0.097477,0.084687,0.101625,0.091255],"jiao":[0.095748,0.10197,0.102662,0.103353,0.104044,0.101625,0.095403,0.100242,0.101279,0.093674],"sd2":0.045497,"last_close":7.73}],"audit":{"n":300,"min":1134,"max":999972,"median":37691,"q25":24141,"q75":61547,"in_band_pct":85.7,"hit_5k_pct":18.3,"hit_10k_pct":37.7,"hit_20k_pct":59.0}}</script>
+<script id="modelData" type="application/json">{"generated":"2026-10-21","rule":"整体百万环形","stocks":[{"sym":"sh600690","code":"600690","name":"海尔智家","n":3031,"fen":[0.141225,0.096795,0.096477,0.095843,0.079023,0.110441,0.089813,0.076484,0.110758,0.103142],"jiao":[0.100603,0.108537,0.096477,0.106633,0.103142,0.092669,0.092986,0.09616,0.092669,0.110124],"sd2":0.019488,"last_close":19.69},{"sym":"sh688139","code":"688139","name":"海尔生物","n":1684,"fen":[0.191242,0.0898,0.099224,0.086475,0.070399,0.107539,0.088692,0.076497,0.101441,0.088692],"jiao":[0.113636,0.087029,0.093126,0.104767,0.095344,0.093126,0.096452,0.093681,0.11918,0.103659],"sd2":0.030044,"last_close":32.69},{"sym":"sz300143","code":"300143","name":"盈康生命","n":2773,"fen":[0.1514,0.091255,0.09402,0.092983,0.079848,0.115451,0.097477,0.084687,0.101625,0.091255],"jiao":[0.095748,0.10197,0.102662,0.103353,0.104044,0.101625,0.095403,0.100242,0.101279,0.093674],"sd2":0.045497,"last_close":7.73}],"audit":{"n":300,"min":1134,"max":999972,"median":37691,"q25":24141,"q75":61547,"in_band_pct":85.7,"hit_5k_pct":18.3,"hit_10k_pct":37.7,"hit_20k_pct":59.0},"backtest":{"total_weeks":283,"range":["2020-11-11","2026-10-16"],"all":{"weeks":283,"rec":23.2,"rand":16.74,"diff":6.46,"se":2.4,"dist":240106},"early":{"weeks":106,"rec":32.85,"rand":17.01,"diff":15.84,"se":4.5,"dist":212409},"since2023":{"weeks":177,"rec":17.43,"rand":16.58,"diff":0.85,"se":2.7,"dist":256692},"since2024":{"weeks":129,"rec":16.68,"rand":16.66,"diff":0.02,"se":3.1,"dist":258791},"since2025":{"weeks":83,"rec":15.34,"rand":16.73,"diff":-1.39,"se":3.8,"dist":253013},"yearly":[{"y":"2021","n":50,"rec":35.5,"rand":17.24,"diff":18.26},{"y":"2022","n":49,"rec":28.71,"rand":16.77,"diff":11.94},{"y":"2023","n":48,"rec":19.44,"rand":16.35,"diff":3.09},{"y":"2024","n":46,"rec":19.09,"rand":16.53,"diff":2.56},{"y":"2025","n":47,"rec":13.52,"rand":16.78,"diff":-3.26},{"y":"2026","n":36,"rec":17.72,"rand":16.67,"diff":1.04}]}}</script>
 <script>
 (function(){
 "use strict";
@@ -482,10 +510,22 @@ function render(){
   var winP = W[bestBin], baseP = spots / players;
 
   document.getElementById("bestNum").firstChild.nodeValue = fmt(bestNum);
-  document.getElementById("winRate").textContent = (winP * 100).toFixed(1) + "%";
-  document.getElementById("baseRate").textContent = (baseP * 100).toFixed(1) + "%";
-  document.getElementById("lift").textContent =
-    (winP > baseP ? "+" : "") + ((winP / baseP - 1) * 100).toFixed(0) + "%";
+
+  /* 首页三个指标一律用回测实测值，不用模型内估计值 */
+  var B = MODEL.backtest;
+  if(B){
+    var s3 = B.since2023;
+    document.getElementById("winRate").textContent = s3.rec.toFixed(1) + "%";
+    document.getElementById("baseRate").textContent = s3.rand.toFixed(1) + "%";
+    document.getElementById("lift").textContent =
+      (s3.diff > 0 ? "+" : "") + s3.diff.toFixed(1) + "pp";
+
+    document.getElementById("btWeeks").textContent = B.total_weeks;
+    document.getElementById("btR1").textContent = B.since2024.rec.toFixed(2) + "%";
+    document.getElementById("btR2").textContent = B.since2024.rand.toFixed(2) + "%";
+    document.getElementById("btD").textContent =
+      (B.since2024.diff > 0 ? "+" : "") + B.since2024.diff.toFixed(2) + "pp";
+  }
   document.getElementById("vPlayers").textContent = players;
   document.getElementById("vSpots").textContent = spots;
 
@@ -532,7 +572,8 @@ function render(){
   document.getElementById("terrainNote").innerHTML =
     "横轴为 000000–999999 的号码环，纵轴为该区间的密度相对均匀分布的倍数。" +
     "蓝色竖线为推荐号 <b style='color:var(--cy)'>" + fmt(bestNum) + "</b>。" +
-    "左侧 0–10 万区间的隆起来自分位数字 0 的聚集，是全部优势的来源。";
+    "左侧 0–10 万区间的隆起来自分位数字 0 的聚集 —— 这是历史上全部优势的来源，" +
+    "但该聚集自 2023 年起已明显衰减（见下方走查回测）。";
 }
 
 /* ---------- 地形图 ---------- */
@@ -743,10 +784,53 @@ function refresh(){
   });
 }
 
+function renderBacktest(){
+  var B = MODEL.backtest; if(!B) return;
+  var segs = [
+    ["全部", B.all], ["2020-11 ~ 2022-12", B.early],
+    ["2023-01 起", B.since2023], ["2024-01 起", B.since2024], ["2025-01 起", B.since2025]
+  ];
+  var h = "<table><thead><tr><th>区间</th><th>周数</th><th>推荐号</th><th>随机号</th>" +
+          "<th>差值</th><th>标准误</th><th>平均距离</th></tr></thead><tbody>";
+  segs.forEach(function(x){
+    var nm = x[0], d = x[1];
+    var col = d.diff > 2 ? "var(--cy)" : (d.diff < 0 ? "var(--up)" : "var(--mut)");
+    h += "<tr><td>" + nm + "</td><td class='n'>" + d.weeks + "</td>" +
+         "<td class='n'>" + d.rec.toFixed(2) + "%</td>" +
+         "<td class='n'>" + d.rand.toFixed(2) + "%</td>" +
+         "<td class='n' style='color:" + col + "'>" +
+         (d.diff > 0 ? "+" : "") + d.diff.toFixed(2) + "pp</td>" +
+         "<td class='n'>&plusmn;" + d.se.toFixed(1) + "</td>" +
+         "<td class='n'>" + d.dist.toLocaleString() + "</td></tr>";
+  });
+  h += "</tbody></table>";
+  document.getElementById("btSeg").innerHTML = h;
+
+  var h2 = "<table><thead><tr><th>年份</th><th>周数</th><th>推荐号</th><th>随机号</th>" +
+           "<th>差值</th></tr></thead><tbody>";
+  B.yearly.forEach(function(y){
+    var col = y.diff > 2 ? "var(--cy)" : (y.diff < 0 ? "var(--up)" : "var(--mut)");
+    h2 += "<tr><td>" + y.y + "</td><td class='n'>" + y.n + "</td>" +
+          "<td class='n'>" + y.rec.toFixed(2) + "%</td>" +
+          "<td class='n'>" + y.rand.toFixed(2) + "%</td>" +
+          "<td class='n' style='color:" + col + "'>" +
+          (y.diff > 0 ? "+" : "") + y.diff.toFixed(2) + "pp</td></tr>";
+  });
+  h2 += "</tbody></table>";
+  document.getElementById("btYear").innerHTML = h2;
+
+  document.getElementById("btNote").innerHTML =
+    "标准误 &plusmn;2.7~3.8pp。2023 年起差值 " + B.since2023.diff.toFixed(2) +
+    "pp、2024 年起 " + B.since2024.diff.toFixed(2) + "pp，<b>全部落在噪声范围内</b>。" +
+    "2025 年起为负值。结论：模型曾经有效，但优势来源（分位=0 的聚集）已衰减，" +
+    "现在不具备实用价值。";
+}
+
 function boot(){
   computeModel();
   render();
   drawDigits();
+  renderBacktest();
   document.getElementById("ftN").textContent =
     MODEL.stocks.reduce(function(a, s){ return a + s.n; }, 0).toLocaleString();
   document.getElementById("ftGen").textContent = "模型生成于 " + MODEL.generated;
